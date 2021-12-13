@@ -1,19 +1,22 @@
 import express from "express";
+import { app } from "@src/app";
 
 export const expressDevLogger = (
   req: express.Request,
   res: express.Response,
   next: express.NextFunction
 ): void => {
+  const logger = app.logger;
+
   const startHrTime = process.hrtime();
 
-  console.log(
+  logger.http(
     `Request: ${req.method} ${
       req.url
     } as ${new Date().toUTCString()}, User-Agent: ${req.get("User-Agent")}`
   );
 
-  console.log(`Request Body: ${JSON.stringify(req.body)}`);
+  logger.http(`Request Body: ${JSON.stringify(req.body)}`);
 
   const [oldWrite, oldEnd] = [res.write, res.end];
 
@@ -30,10 +33,10 @@ export const expressDevLogger = (
     const elapsedHrTime = process.hrtime(startHrTime);
     const elapsedTimeInMs = elapsedHrTime[0] * 100 + elapsedHrTime[1] / 1e6;
 
-    console.log(`Response ${res.statusCode} ${elapsedTimeInMs.toFixed(3)} ms`);
+    logger.http(`Response ${res.statusCode} ${elapsedTimeInMs.toFixed(3)} ms`);
 
     const body = Buffer.concat(chunks).toString("utf8");
-    console.log(`Response Body: ${body}`);
+    logger.http(`Response Body: ${body}`);
 
     (oldEnd as Function).apply(res, arguments);
   };

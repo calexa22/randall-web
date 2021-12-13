@@ -8,24 +8,40 @@ import { connector, summarise } from "swagger-routes-express";
 import YAML from "yamljs";
 
 import * as api from "@src/api/controllers";
-import { expressDevLogger } from "./express_dev_logger";
+import { EnvSettings } from "@src/utils/env";
+import { expressDevLogger } from "@src/utils/express_dev_logger";
+import { Logger } from "winston";
 
-export const createServer = async (): Promise<Express> => {
+export const createServer = async (
+  settings: EnvSettings,
+  logger: Logger
+): Promise<Express> => {
   const yamlSpec = "./config/openapi/spec.yml";
   const apiDefinition = YAML.load(yamlSpec);
   const apiSummary = summarise(apiDefinition);
-  console.log(apiSummary);
+  logger.info(apiSummary);
 
   const server = express();
 
   server.use(bodyParser.json());
-  server.use(
-    morgan(":method :url :status :response-time ms - :res[content-length]")
-  );
 
-  morganBody(server);
+  if (settings.logger.useMorgan) {
+    logger.info("using morgan logger");
 
-  server.use(expressDevLogger);
+    server.use(
+      morgan(":method :url :status :response-time ms - :res[content-length]")
+    );
+  }
+
+  if (settings.logger.useMorganBody) {
+    logger.info("using morgan-body logger");
+    morganBody(server);
+  }
+
+  if (settings.logger.useDevLogger) {
+    logger.info("using custom dev logger");
+    server.use(expressDevLogger);
+  }
 
   server.use(
     OpenApiValidator.middleware({
@@ -55,7 +71,7 @@ export const createServer = async (): Promise<Express> => {
 
   const connect = connector(api, apiDefinition, {
     onCreateRoute: (method: string, descriptor: any[]) => {
-      console.log(`${method}: ${descriptor[0]} : ${descriptor[1].name}`);
+      logger.verbose(`${method}: ${descriptor.map((d) => d.name).join(", ")}`);
     },
     security: {
       bearerAuth: api.authenticate,

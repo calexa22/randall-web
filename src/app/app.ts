@@ -2,33 +2,37 @@ import * as dotenv from "dotenv";
 import dotenvParseVariables from "dotenv-parse-variables";
 import { createServer } from "@src/utils/server";
 import { getEnvSettings, EnvSettings } from "@src/utils/env";
-
+import { createLogger } from "@src/utils/logger";
+import { Logger } from "winston";
 
 class App {
   private _settings: EnvSettings;
+  private _logger: Logger;
 
   constructor() {
     this._settings = this.loadEnvironmentVariables();
-
-    console.log(this._settings.app.port);
-    console.log(typeof this._settings.app.port);
+    this._logger = this.createAppLogger();
   }
 
   get settings(): EnvSettings {
     return this._settings;
   }
 
+  get logger(): Logger {
+    return this._logger;
+  }
+
   start = (): void => {
     const port = this._settings.app.port;
 
-    createServer()
+    createServer(this._settings, this._logger)
       .then((server) => {
         server.listen(port, () => {
-          console.log(`Listening on http://localhost:${port}`);
+          this._logger.info(`Listening on http://localhost:${port}`);
         });
       })
       .catch((err) => {
-        console.error(`App Error: ${err}`);
+        this._logger.error(`App Error: ${err}`);
       });
   };
 
@@ -47,8 +51,13 @@ class App {
 
     return getEnvSettings(dotenvParseVariables(output.parsed));
   };
+
+  private createAppLogger = (): Logger => {
+    const logger = createLogger(this._settings.logger.logLevel);
+
+    logger.info(`Logger created - Level: ${logger.level}`);
+    return logger;
+  };
 }
 
-const app = new App();
-
-app.start();
+export const app = new App();
