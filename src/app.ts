@@ -1,26 +1,25 @@
 import * as dotenv from "dotenv";
-import dotenvParseVariables, { ParsedVariables } from "dotenv-parse-variables";
+import dotenvParseVariables from "dotenv-parse-variables";
+import { createServer } from "@src/utils/server";
+import { getEnvSettings, EnvSettings } from "@src/utils/env";
 
-import { resourceLimits } from "worker_threads";
-
-import { createServer } from "./utils/server";
 
 class App {
-  private _parsedVariables: ParsedVariables;
+  private _settings: EnvSettings;
 
   constructor() {
-    this._parsedVariables = this.loadEnvironmentVariables();
+    this._settings = this.loadEnvironmentVariables();
 
-    console.log(this._parsedVariables.APP_PORT);
-    console.log(typeof this._parsedVariables.APP_PORT);
+    console.log(this._settings.app.port);
+    console.log(typeof this._settings.app.port);
   }
 
-  get env(): ParsedVariables {
-    return this._parsedVariables!;
+  get settings(): EnvSettings {
+    return this._settings;
   }
 
   start = (): void => {
-    const port = this.env.APP_PORT as number;
+    const port = this._settings.app.port;
 
     createServer()
       .then((server) => {
@@ -33,7 +32,7 @@ class App {
       });
   };
 
-  private loadEnvironmentVariables = (): ParsedVariables => {
+  private loadEnvironmentVariables = (): EnvSettings => {
     const output = dotenv.config({
       path: "./config/.env",
     });
@@ -43,10 +42,10 @@ class App {
       throw output.error;
     } else if (!output.parsed) {
       console.error(`Error loading .env: ${output.error}`);
-      throw EvalError;
+      throw Error("Error parsing .env:");
     }
 
-    return dotenvParseVariables(output.parsed);
+    return getEnvSettings(dotenvParseVariables(output.parsed));
   };
 }
 
